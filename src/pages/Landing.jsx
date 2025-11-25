@@ -16,21 +16,38 @@ function formatSqft(n = "") {
 
 
 
+
+
+
+
+
+
+// Detect if we are running inside Electron
+const isElectron =
+  typeof window !== "undefined" &&
+  window.process &&
+  window.process.versions &&
+  window.process.versions.electron;
+
 function normalizePathOrUrl(src = "") {
   if (!src) return "";
 
-  // Already a full URL or blob/base64
+  // Already a normal URL / blob / data / file URL
   if (/^(https?:\/\/|blob:|data:|file:\/\/)/i.test(src)) {
     return src;
   }
 
-  // Windows-style absolute path: C:\folder\file.png or \\server\share\file.jpg
-  if (/^[a-z]:\\/i.test(src) || src.startsWith("\\\\")) {
-    const p = src.replace(/\\/g, "/"); // backslashes -> forward
+  // Windows absolute path (C:\... or \\server\...)
+  const isWinPath =
+    /^[a-z]:\\/i.test(src) || src.startsWith("\\\\");
+
+  // Only convert Windows paths to file:/// **inside Electron**
+  if (isElectron && isWinPath) {
+    const p = src.replace(/\\/g, "/");
     return `file:///${p}`;
   }
 
-  // Anything else (relative, etc.)
+  // For plain web builds, just return the string (will usually be an http(s) URL)
   return src;
 }
 
@@ -62,6 +79,7 @@ function ImageWithFallback({ src, alt, style }) {
     />
   );
 }
+
 
 
 /** ====== BUILD CARD ====== */
@@ -291,14 +309,42 @@ function ProjectForm({ onAdd }) {
     const thumbFileRef = useRef(null);
   const videoFileRef = useRef(null);
 
-  const handleThumbFileSelect = (e) => {
+  // Re-use isElectron from above
+
+// Thumbnail
+const handleThumbFileSelect = (e) => {
   const file = e.target.files?.[0];
   if (file) {
-    const src = file.path || URL.createObjectURL(file);
+    const src = isElectron && file.path
+      ? file.path
+      : URL.createObjectURL(file);
+
     setForm((f) => ({ ...f, thumb: src }));
     setError("");
   }
 };
+
+const handleThumbDrop = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  const file = e.dataTransfer.files?.[0];
+  if (file) {
+    const src = isElectron && file.path
+      ? file.path
+      : URL.createObjectURL(file);
+
+    setForm((f) => ({ ...f, thumb: src }));
+    setError("");
+    return;
+  }
+
+  const text = e.dataTransfer.getData("text");
+  if (text) {
+    setForm((f) => ({ ...f, thumb: text.trim() }));
+    setError("");
+  }
+};
+
 
 
 
@@ -324,14 +370,41 @@ const handleVizwalkDrop = (e) => {
 
 
 
-  const handleVideoFileSelect = (e) => {
+  // ---- VIDEO HANDLERS ----
+const handleVideoFileSelect = (e) => {
   const file = e.target.files?.[0];
   if (file) {
-    const src = file.path || URL.createObjectURL(file);
+    const src = isElectron && file.path
+      ? file.path
+      : URL.createObjectURL(file);
+
     setForm((f) => ({ ...f, youtube: src }));
     setError("");
   }
 };
+
+const handleVideoDrop = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+
+  const file = e.dataTransfer.files?.[0];
+  if (file) {
+    const src = isElectron && file.path
+      ? file.path
+      : URL.createObjectURL(file);
+
+    setForm((f) => ({ ...f, youtube: src }));
+    setError("");
+    return;
+  }
+
+  const text = e.dataTransfer.getData("text");
+  if (text) {
+    setForm((f) => ({ ...f, youtube: text.trim() }));
+    setError("");
+  }
+};
+
 
 
 
@@ -372,44 +445,10 @@ const handleVizwalkDrop = (e) => {
     }));
   };
 
-  /** Drag & drop helpers */
-  const handleThumbDrop = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  const file = e.dataTransfer.files?.[0];
-  if (file) {
-    // Electron File has a .path that persists across sessions
-    const src = file.path || URL.createObjectURL(file);
-    setForm((f) => ({ ...f, thumb: src }));
-    setError("");
-    return;
-  }
-
-  const text = e.dataTransfer.getData("text");
-  if (text) {
-    setForm((f) => ({ ...f, thumb: text.trim() }));
-    setError("");
-  }
-};
 
 
-  const handleVideoDrop = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  const file = e.dataTransfer.files?.[0];
-  if (file) {
-    const src = file.path || URL.createObjectURL(file);
-    setForm((f) => ({ ...f, youtube: src }));
-    setError("");
-    return;
-  }
 
-  const text = e.dataTransfer.getData("text");
-  if (text) {
-    setForm((f) => ({ ...f, youtube: text.trim() }));
-    setError("");
-  }
-};
+
 
 
   const preventDefault = (e) => {
