@@ -23,11 +23,11 @@ function formatSqft(n = "") {
 
 
 // Detect if we are running inside Electron
-// Detect if we are running inside Electron (via preload-exposed APIs)
-// Detect if we are running inside the packaged Electron app
-const isElectron = !!(window.electronAPI || window.vizwalkStorage);
-
-
+const isElectron =
+  typeof window !== "undefined" &&
+  window.process &&
+  window.process.versions &&
+  window.process.versions.electron;
 
 function normalizePathOrUrl(src = "") {
   if (!src) return "";
@@ -655,79 +655,49 @@ const handleVideoDrop = (e) => {
 }
 
 /** ====== MAIN PAGE (OFFLINE) ====== */
-// inside Landing component
 export default function Landing() {
   const [items, setItems] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
-  const [storageReady, setStorageReady] = useState(false);
 
   const onSelect = (id) => setSelectedId((prev) => (prev === id ? null : id));
 
-  // 1) LOAD from Electron (or fallback to localStorage in dev web)
+  // Load from localStorage on first mount
   useEffect(() => {
-    (async () => {
-      try {
-        if (window.vizwalkStorage?.loadProjects) {
-          const saved = await window.vizwalkStorage.loadProjects();
-          if (Array.isArray(saved)) {
-            setItems(saved);
-          }
-        } else {
-          // fallback if running pure web build
-          const raw = window.localStorage?.getItem("vizwalk_projects");
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            if (Array.isArray(parsed)) setItems(parsed);
-          }
-        }
-      } catch (err) {
-        console.error("Error loading projects:", err);
-      } finally {
-        setStorageReady(true);
+    try {
+      const raw = localStorage.getItem("vizwalk_projects");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setItems(parsed);
       }
-    })();
+    } catch (e) {
+      console.error("Error loading projects from localStorage", e);
+    }
   }, []);
 
-  // 2) SAVE whenever items change
+  // Save whenever items change
   useEffect(() => {
-    if (!storageReady) return;
-
     try {
-      if (window.vizwalkStorage?.saveProjects) {
-        window.vizwalkStorage.saveProjects(items);
-      } else if (window.localStorage) {
-        window.localStorage.setItem("vizwalk_projects", JSON.stringify(items));
-      }
-    } catch (err) {
-      console.error("Error saving projects:", err);
+      localStorage.setItem("vizwalk_projects", JSON.stringify(items));
+    } catch (e) {
+      console.error("Error saving projects to localStorage", e);
     }
-  }, [items, storageReady]);
-
-  // ...rest of your component stays EXACTLY the same
-
+  }, [items]);
 
   const handleAddProject = (proj) => {
     setItems((prev) => [...prev, proj]);
   };
 
- const handleClearAll = () => {
-  if (!items.length) return;
+  const handleClearAll = () => {
+  if (!items.length) return; // nothing to do
   setItems([]);
-
   try {
-    if (window.vizwalkStorage?.saveProjects) {
-      // Clear the JSON file used by Electron
-      window.vizwalkStorage.saveProjects([]);
-    } else if (window.localStorage) {
-      window.localStorage.removeItem("vizwalk_projects");
-    }
+    localStorage.removeItem("vizwalk_projects");
   } catch (e) {
-    console.error("Failed to clear projects", e);
+    console.error("Failed to clear local projects", e);
   }
 };
-
 
 
   const filtered = useMemo(() => {
