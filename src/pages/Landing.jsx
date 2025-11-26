@@ -664,6 +664,7 @@ export default function Landing() {
   const [storageReady, setStorageReady] = useState(false);
 
   const onSelect = (id) => setSelectedId((prev) => (prev === id ? null : id));
+  const [showProjectActions, setShowProjectActions] = useState(false);
 
   // 1) LOAD from Electron (or fallback to localStorage in dev web)
   useEffect(() => {
@@ -704,6 +705,31 @@ export default function Landing() {
       console.error("Error saving projects:", err);
     }
   }, [items, storageReady]);
+
+
+
+    // 🔹 Keyboard shortcut: press N to toggle Add/Clear buttons
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignore if focused inside an input/textarea/contentEditable
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        active?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "n" || e.key === "N") {
+        setShowProjectActions((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // ...rest of your component stays EXACTLY the same
 
@@ -832,7 +858,7 @@ export default function Landing() {
               style={styles.searchInput}
               aria-label="Search projects"
             />
-            {query ? (
+                        {query ? (
               <button
                 type="button"
                 onClick={() => setQuery("")}
@@ -843,20 +869,27 @@ export default function Landing() {
                 ×
               </button>
             ) : null}
-            <button
-              type="button"
-              style={styles.searchAddBtn}
-              onClick={() => setShowForm((v) => !v)}
-            >
-              + Add Project
-            </button>
-            <button
-              type="button"
-              style={styles.searchClearBtn}
-              onClick={handleClearAll}
-            >
-              Clear All
-            </button>
+
+            {/* 🔹 Only show these when N has been pressed */}
+            {showProjectActions && (
+              <>
+                <button
+                  type="button"
+                  style={styles.searchAddBtn}
+                  onClick={() => setShowForm((v) => !v)}
+                >
+                  + Add Project
+                </button>
+                <button
+                  type="button"
+                  style={styles.searchClearBtn}
+                  onClick={handleClearAll}
+                >
+                  Clear All
+                </button>
+              </>
+            )}
+
           </div>
         </div>
 
