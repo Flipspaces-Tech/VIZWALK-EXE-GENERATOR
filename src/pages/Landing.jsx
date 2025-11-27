@@ -219,41 +219,50 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
       {/* Bottom-right actions */}
       <div style={styles.actionsRow}>
         {/* YouTube / Video */}
-        {ytHref ? (
-          <a
-            href={ytHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={(e) => {
-              e.stopPropagation();
-              setYtHover(false);
-            }}
-            onMouseDown={() => setYtHover(false)}
-            title="Watch walkthrough / video"
-            style={styles.iconBtnClear}
-            onMouseEnter={() => setYtHover(true)}
-            onMouseLeave={() => setYtHover(false)}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              style={{
-                ...styles.ytSvg,
-                ...(ytHover ? styles.ytSvgHover : null),
-              }}
-              aria-hidden
-            >
-              <rect
-                x="2.8"
-                y="6.2"
-                width="18.4"
-                height="11.6"
-                rx="3.2"
-                fill={ytHover ? "#FF0000" : "#0D0D0D"}
-              />
-              <path d="M10 9v6l5-3-5-3z" fill="#FFFFFF" />
-            </svg>
-          </a>
-        ) : null}
+       {ytHref ? (
+  <button
+    type="button"
+    style={styles.iconBtnClear}
+    title="Open video"
+    onClick={(e) => {
+      e.stopPropagation();
+      setYtHover(false);
+
+      const raw = (item.youtube || "").trim();
+
+      // If running as Electron desktop & API exists → always use VLC
+      if (window.electronAPI && typeof window.electronAPI.openInVLC === "function") {
+        window.electronAPI.openInVLC(raw || ytHref);
+        return;
+      }
+
+      // Web build / fallback → open in browser / default player
+      window.open(ytHref, "_blank", "noopener,noreferrer");
+    }}
+    onMouseEnter={() => setYtHover(true)}
+    onMouseLeave={() => setYtHover(false)}
+  >
+    <svg
+      viewBox="0 0 24 24"
+      style={{
+        ...styles.ytSvg,
+        ...(ytHover ? styles.ytSvgHover : null),
+      }}
+      aria-hidden
+    >
+      <rect
+        x="2.8"
+        y="6.2"
+        width="18.4"
+        height="11.6"
+        rx="3.2"
+        fill={ytHover ? "#FF0000" : "#0D0D0D"}
+      />
+      <path d="M10 9v6l5-3-5-3z" fill="#FFFFFF" />
+    </svg>
+  </button>
+) : null}
+
 
         {/* Vizdom */}
         {vizdomHref ? (
