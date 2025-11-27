@@ -194,13 +194,13 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
       {/* Title + Version */}
       <div style={styles.titleWrap}>
         <div style={styles.titleText}>
-          {item.buildName || "Build Name"}
+          {item.projectName || item.projectSlot || "Project Slot Name"}
           <span style={styles.versionText}>
             {item.buildVersion ? ` ${item.buildVersion}` : ""}
           </span>
         </div>
         <div style={styles.subLink}>
-          {item.projectName || item.projectSlot || "Project Slot Name"}
+          {item.buildName || "Build Name"}
         </div>
       </div>
 
@@ -678,6 +678,7 @@ export default function Landing() {
   const [showProjectActions, setShowProjectActions] = useState(false);
 
   const [showBgVideo, setShowBgVideo] = useState(false);
+  const [showBgImage, setShowBgImage] = useState(false); 
 
   // 1) LOAD from Electron (or fallback to localStorage in dev web)
   useEffect(() => {
@@ -767,7 +768,31 @@ export default function Landing() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // ...rest of your component stays EXACTLY the same
+    // 🔹 NEW: Shift + Tab to toggle background image
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        active?.isContentEditable
+      ) {
+        return;
+      }
+
+      if (e.key === "Tab" && e.shiftKey) {
+        // Optional: stop focus from jumping
+        e.preventDefault();
+        setShowBgImage((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+
 
 
   const handleAddProject = (proj) => {
@@ -878,8 +903,16 @@ export default function Landing() {
     window.open(href, "_blank", "noopener,noreferrer");
   };
 
-  return (
-  <div style={styles.wrapper}>
+    return (
+    <div style={styles.wrapper}>
+      {/* 🔹 Static background image (Shift + Tab) */}
+      {showBgImage && (
+        <img
+          src="/bg_image.jpg"     // <-- change to your image path
+          alt=""
+          style={styles.bgImage}
+        />
+      )}
     {/* 🔹 Background video overlay (toggled by ?) */}
     {showBgVideo && (
       <div
@@ -988,7 +1021,7 @@ const styles = {
     width: "100%",
     height: "100vh",
     overflowY: "auto",
-    background: "#e9eefcd1",        // fallback when video is off
+    background: "#e9eefcff",        // fallback when video is off
     position: "relative",
   },
   page: {
@@ -997,7 +1030,7 @@ const styles = {
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
     position: "relative",
     zIndex: 1,                 // 🔹 keep UI above the video
-    // background: "#e9eefcd1",
+    // background: "#e9eefce8",
     minHeight: "100vh",
   },
 
@@ -1015,6 +1048,20 @@ const styles = {
   },
   // ...rest of your styles
 
+
+
+
+    bgImage: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    objectFit: "cover",
+    zIndex: 0,
+    pointerEvents: "none",
+    filter: "blur(1px) brightness(0.95)", // tweak if you like
+  },
 
 
   /** Form */
@@ -1127,7 +1174,7 @@ const styles = {
     top: 0,
     zIndex: 20,
     padding: "8px 0 24px 0",
-    // background: "linear-gradient(#e9eefc 60%, rgba(233,238,252,0.7))",
+    // background: "linear-gradient(#e9eefc 60%, #e9eefcb3)",
     backdropFilter: "saturate(1.05)",
   },
   searchInner: {
