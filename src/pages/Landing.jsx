@@ -746,27 +746,27 @@ export default function Landing() {
   }, []);
 
   // 🔹 NEW: Keyboard shortcut "?" (Shift + /) to toggle background video
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      const active = document.activeElement;
-      const tag = active?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        active?.isContentEditable
-      ) {
-        return;
-      }
+  // useEffect(() => {
+  //   const handleKeyDown = (e) => {
+  //     const active = document.activeElement;
+  //     const tag = active?.tagName;
+  //     if (
+  //       tag === "INPUT" ||
+  //       tag === "TEXTAREA" ||
+  //       active?.isContentEditable
+  //     ) {
+  //       return;
+  //     }
 
-      // In most layouts, Shift + '/' gives '?'.
-      if ((e.key === "?" ) || (e.key === "/" && e.shiftKey)) {
-        setShowBgVideo((prev) => !prev);
-      }
-    };
+  //     // In most layouts, Shift + '/' gives '?'.
+  //     if ((e.key === "?" ) || (e.key === "/" && e.shiftKey)) {
+  //       setShowBgVideo((prev) => !prev);
+  //     }
+  //   };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  //   window.addEventListener("keydown", handleKeyDown);
+  //   return () => window.removeEventListener("keydown", handleKeyDown);
+  // }, []);
 
     // 🔹 NEW: Shift + Tab to toggle background image
   useEffect(() => {
