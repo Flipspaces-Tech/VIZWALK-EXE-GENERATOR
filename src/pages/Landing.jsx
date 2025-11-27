@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useRef } from "react";
 
 import vizIcon from "../assets/vizdom.png"; // same icon
 
+const BG_VIDEO_SRC = "/bg.mp4";
+
 /** ====== UTILS ====== */
 const norm = (s = "") =>
   s.toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
@@ -675,6 +677,8 @@ export default function Landing() {
   const onSelect = (id) => setSelectedId((prev) => (prev === id ? null : id));
   const [showProjectActions, setShowProjectActions] = useState(false);
 
+  const [showBgVideo, setShowBgVideo] = useState(false);
+
   // 1) LOAD from Electron (or fallback to localStorage in dev web)
   useEffect(() => {
     (async () => {
@@ -718,9 +722,9 @@ export default function Landing() {
 
 
     // 🔹 Keyboard shortcut: press N to toggle Add/Clear buttons
+  // 🔹 Keyboard shortcut: press N to toggle Add/Clear buttons
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if focused inside an input/textarea/contentEditable
       const active = document.activeElement;
       const tag = active?.tagName;
       if (
@@ -733,6 +737,29 @@ export default function Landing() {
 
       if (e.key === "n" || e.key === "N") {
         setShowProjectActions((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // 🔹 NEW: Keyboard shortcut "?" (Shift + /) to toggle background video
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const active = document.activeElement;
+      const tag = active?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        active?.isContentEditable
+      ) {
+        return;
+      }
+
+      // In most layouts, Shift + '/' gives '?'.
+      if ((e.key === "?" ) || (e.key === "/" && e.shiftKey)) {
+        setShowBgVideo((prev) => !prev);
       }
     };
 
@@ -852,9 +879,28 @@ export default function Landing() {
   };
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.page}>
-        {/* Search bar with + Add Project button */}
+  <div style={styles.wrapper}>
+    {/* 🔹 Background video overlay (toggled by ?) */}
+    {showBgVideo && (
+      <div
+        style={styles.bgVideoOverlay}
+        onClick={() => setShowBgVideo(false)} // click anywhere to hide
+      >
+        <video
+          src="/bg-video.mp4"     // or "/videos/my-video.mp4" etc.
+          style={styles.bgVideo}
+          autoPlay
+          loop
+          muted
+        />
+        {/* <div style={styles.bgVideoHint}>
+          Press <strong>?</strong> again (or click) to close
+        </div> */}
+      </div>
+    )}
+
+    <div style={styles.page}>
+      {/* Search bar with + Add Project button */}
         <div style={styles.searchBarWrap}>
           <div style={styles.searchInner}>
             <span style={styles.searchIcon} aria-hidden>
@@ -942,13 +988,34 @@ const styles = {
     width: "100%",
     height: "100vh",
     overflowY: "auto",
-    background: "#e9eefc",
+    background: "#e9eefcd1",        // fallback when video is off
+    position: "relative",
   },
   page: {
     padding: 24,
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+    position: "relative",
+    zIndex: 1,                 // 🔹 keep UI above the video
+    // background: "#e9eefcd1",
+    minHeight: "100vh",
   },
+
+  // 🔹 Add this new style:
+  bgVideo: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    objectFit: "cover",
+    zIndex: 0,
+    pointerEvents: "none",
+    filter: "blur(1px) brightness(0.9)", // optional
+  },
+  // ...rest of your styles
+
+
 
   /** Form */
   formWrapper: {
@@ -1060,7 +1127,7 @@ const styles = {
     top: 0,
     zIndex: 20,
     padding: "8px 0 24px 0",
-    background: "linear-gradient(#e9eefc 60%, rgba(233,238,252,0.7))",
+    // background: "linear-gradient(#e9eefc 60%, rgba(233,238,252,0.7))",
     backdropFilter: "saturate(1.05)",
   },
   searchInner: {
