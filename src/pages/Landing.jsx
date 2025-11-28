@@ -996,21 +996,39 @@ const handleClearAll = () => {
   window.open(ytHref, "_blank", "noopener,noreferrer");
 };
 
-  const handleOpenVizwalk = (item) => {
+  const handleOpenVizwalk = async (item) => {
   const rawUrl = (item.url || "").trim();
-  const videoRaw = (item.youtube || "").trim();
+  const videoUrl = (item.youtube || "").trim();
 
-  const hasVizwalkUrl = !!rawUrl;
-  const hasVideo = !!videoRaw;
+  // 0) If no Vizwalk URL but we *do* have a video → open video instead
+  if (!rawUrl && videoUrl) {
+    const ytHref = normalizePathOrUrl(videoUrl);
 
-  // ✅ If there is NO Vizwalk URL but we DO have a video,
-  //    use the video as the primary action for "Open Vizwalk"
-  if (!hasVizwalkUrl && hasVideo) {
-    openVideoForItem(item);
+    if (window.electronAPI && typeof window.electronAPI.openInVLC === "function") {
+      window.electronAPI.openInVLC(videoUrl || ytHref);
+    } else {
+      window.open(ytHref, "_blank", "noopener,noreferrer");
+    }
     return;
   }
 
-  // 🔹 Your existing Vizwalk logic (unchanged)
+  // 1) EXE path → launch via Electron
+  const looksLikeExe =
+    rawUrl &&
+    /\.exe$/i.test(rawUrl) &&
+    (/^[a-z]:\\/i.test(rawUrl) || rawUrl.startsWith("\\\\"));
+
+  if (looksLikeExe && window.electronAPI?.launchExe) {
+    console.log("Launching EXE via electronAPI:", rawUrl);
+    try {
+      await window.electronAPI.launchExe(rawUrl);
+    } catch (e) {
+      console.error("launchExe failed:", e);
+    }
+    return; // ✅ Don't fall through
+  }
+
+  // 2) Normal URL / relative path → open in browser
   const bust = Date.now();
   const sessionId = `${(item.projectName || "project")
     .toLowerCase()
@@ -1022,19 +1040,12 @@ const handleClearAll = () => {
   if (rawUrl && /^https?:\/\//i.test(rawUrl)) {
     const u = new URL(rawUrl);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set(
-      "build",
-      item.buildName || item.projectName || "Build"
-    );
+    u.searchParams.set("build", item.buildName || item.projectName || "Build");
     href = u.toString();
   } else if (rawUrl) {
-    // relative (e.g., /experience?... )
     const u = new URL(rawUrl, window.location.origin);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set(
-      "build",
-      item.buildName || item.projectName || "Build"
-    );
+    u.searchParams.set("build", item.buildName || item.projectName || "Build");
     href = u.toString();
   } else {
     const id = (item.projectName || "project")
@@ -1052,6 +1063,7 @@ const handleClearAll = () => {
 
   window.open(href, "_blank", "noopener,noreferrer");
 };
+
 
 
 
