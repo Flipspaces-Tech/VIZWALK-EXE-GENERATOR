@@ -92,11 +92,16 @@ function BuildCard({
   onOpenGallery,
   onSelect,
   selected,
+  showMenu,          // ✅ NEW
+  onEdit,           // ✅ NEW
+  onDelete,         // ✅ NEW
 }) {
   const [cardHover, setCardHover] = React.useState(false);
   const [mediaHover, setMediaHover] = React.useState(false);
   const [ytHover, setYtHover] = React.useState(false);
   const [vizHover, setVizHover] = React.useState(false);
+
+  const [menuOpen, setMenuOpen] = React.useState(false); // ✅ NEW
 
   const cardStyle = {
     ...styles.card,
@@ -295,13 +300,60 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
           </a>
         ) : null}
       </div>
+      {/* ✅ 3-dot menu (only when N has toggled actions on) */}
+      {showMenu && (
+        <div
+          style={styles.cardMenuWrap}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            style={styles.cardMenuBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((v) => !v);
+            }}
+            title="More actions"
+          >
+            ⋮
+          </button>
+
+          {menuOpen && (
+            <div style={styles.cardMenu}>
+              <button
+                type="button"
+                style={styles.cardMenuItem}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onEdit?.();
+                }}
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                style={styles.cardMenuItemDanger}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                  onDelete?.();
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 /** ====== PROJECT FORM ====== */
-function ProjectForm({ onAdd }) {
-  const [form, setForm] = useState({
+function ProjectForm({ onAdd, initial }) {
+
+    const emptyForm = {
     sbu: "Enterprise",
     projectName: "",
     buildName: "",
@@ -312,8 +364,31 @@ function ProjectForm({ onAdd }) {
     thumb: "",
     youtube: "",
     vizdomId: "",
-    url: "", // direct Vizwalk URL (optional)
-  });
+    url: "",
+  };
+
+  const [form, setForm] = useState(
+    initial ? { ...emptyForm, ...initial } : emptyForm
+  );
+
+  useEffect(() => {
+    setForm(initial ? { ...emptyForm, ...initial } : emptyForm);
+  }, [initial]);
+
+
+  // const [form, setForm] = useState({
+  //   sbu: "Enterprise",
+  //   projectName: "",
+  //   buildName: "",
+  //   buildVersion: "V1",
+  //   areaSqft: "",
+  //   industry: "",
+  //   designStyle: "",
+  //   thumb: "",
+  //   youtube: "",
+  //   vizdomId: "",
+  //   url: "", // direct Vizwalk URL (optional)
+  // });
 
   const [error, setError] = useState("");
 
@@ -425,7 +500,7 @@ const handleVideoDrop = (e) => {
     setError("");
   };
 
-  const handleSubmit = (e) => {
+    const handleSubmit = (e) => {
     e.preventDefault();
     if (!form.projectName.trim() || !form.buildName.trim()) {
       setError("Please fill at least Project Name and Build Name");
@@ -434,27 +509,26 @@ const handleVideoDrop = (e) => {
 
     setError("");
 
-    onAdd({
+    const projectSlotId =
+      initial?.projectSlotId || `${form.projectName}-${Date.now()}`;
+
+    const payload = {
+      ...(initial || {}),
       ...form,
       projectSlot: form.projectName,
-      projectSlotId: `${form.projectName}-${Date.now()}`,
-      uploadId: "",
-    });
+      projectSlotId,
+      uploadId: initial?.uploadId || "",
+    };
 
-    // Reset (keep SBU & version as defaults)
-    setForm((f) => ({
-      ...f,
-      projectName: "",
-      buildName: "",
-      areaSqft: "",
-      industry: "",
-      designStyle: "",
-      thumb: "",
-      youtube: "",
-      vizdomId: "",
-      url: "",
-    }));
+    onAdd(payload);
+
+    // After creating NEW project, reset the form.
+    // For edit, parent closes the form anyway.
+    if (!initial) {
+      setForm({ ...emptyForm, sbu: "Enterprise", buildVersion: "V1" });
+    }
   };
+
 
 
 
@@ -680,6 +754,8 @@ export default function Landing() {
   const [showBgVideo, setShowBgVideo] = useState(false);
   const [showBgImage, setShowBgImage] = useState(false); 
 
+  const [editingInitial, setEditingInitial] = useState(null);
+
   // 1) LOAD from Electron (or fallback to localStorage in dev web)
   useEffect(() => {
     (async () => {
@@ -795,12 +871,49 @@ export default function Landing() {
 
 
 
-  const handleAddProject = (proj) => {
-    setItems((prev) => [...prev, proj]);
+    const handleAddProject = (proj) => {
+    setItems((prev) => {
+      // If we were editing something, replace it
+      if (editingInitial && editingInitial.projectSlotId) {
+        return prev.map((it) =>
+          it.projectSlotId === editingInitial.projectSlotId ? proj : it
+        );
+      }
+      // Otherwise, it's a new project
+      return [...prev, proj];
+    });
+
+    setShowForm(false);
+    setEditingInitial(null);
   };
 
- const handleClearAll = () => {
+
+
+    const handleEditProject = (item) => {
+    setEditingInitial(item);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleDeleteProject = (item) => {
+    const label = item.projectName || item.buildName || "this project";
+    const ok = window.confirm(`Delete "${label}" from this list?`);
+    if (!ok) return;
+
+    setItems((prev) =>
+      prev.filter((it) => it.projectSlotId !== item.projectSlotId)
+    );
+  };
+
+
+const handleClearAll = () => {
   if (!items.length) return;
+
+  const ok = window.confirm(
+    "This will clear ALL projects from this list and storage.\nAre you sure you want to continue?"
+  );
+  if (!ok) return;
+
   setItems([]);
 
   try {
@@ -814,6 +927,7 @@ export default function Landing() {
     console.error("Failed to clear projects", e);
   }
 };
+
 
 
 
@@ -964,7 +1078,10 @@ export default function Landing() {
                 <button
                   type="button"
                   style={styles.searchAddBtn}
-                  onClick={() => setShowForm((v) => !v)}
+                  onClick={() => {
+                    setEditingInitial(null);        // ✅ ensure blank form
+                    setShowForm((v) => !v);
+                  }}
                 >
                   + Add Project
                 </button>
@@ -982,7 +1099,13 @@ export default function Landing() {
         </div>
 
         {/* Slide-down form */}
-        {showForm && <ProjectForm onAdd={handleAddProject} />}
+        {showForm && (
+          <ProjectForm
+            onAdd={handleAddProject}
+            initial={editingInitial}   // ✅ pre-fill when editing
+          />
+        )}
+
 
         <div style={styles.columns}>
           {groups.map(([sbu, arr]) => (
@@ -1004,7 +1127,11 @@ export default function Landing() {
                     onOpenGallery={() => handleOpenGallery(item)}
                     onSelect={onSelect}
                     selected={selectedId === id}
+                    showMenu={showProjectActions}                // ✅ N key toggles this
+                    onEdit={() => handleEditProject(item)}      // ✅ Edit
+                    onDelete={() => handleDeleteProject(item)}  // ✅ Delete
                   />
+
                 );
               })}
             </div>
@@ -1416,4 +1543,59 @@ const styles = {
   vizGlowOn: {
     opacity: 1,
   },
+
+
+    cardMenuWrap: {
+        position: "absolute",
+        right: 8,
+        bottom: 52,      // 👈 align vertically with actionsRow (which is bottom: 12)
+        right: 9,       // 👈 nudge it left of the YouTube icon (adjust 56/60/64 as you like)
+        zIndex: 5,
+      },
+
+  cardMenuBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 25,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#000",
+    padding: 0,
+  },
+  cardMenu: {
+    position: "absolute",
+    top: 32,
+    right: 0,
+    minWidth: 120,
+    borderRadius: 10,
+    background: "#ffffff",
+    boxShadow: "0 10px 25px rgba(15,23,42,0.25)",
+    padding: "4px 0",
+    zIndex: 10,
+  },
+  cardMenuItem: {
+    width: "100%",
+    padding: "6px 12px",
+    border: "none",
+    background: "transparent",
+    textAlign: "left",
+    fontSize: 13,
+    cursor: "pointer",
+  },
+  cardMenuItemDanger: {
+    width: "100%",
+    padding: "6px 12px",
+    border: "none",
+    background: "transparent",
+    textAlign: "left",
+    fontSize: 13,
+    cursor: "pointer",
+    color: "#b91c1c",
+  },
+
 };
