@@ -125,6 +125,15 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
 
 
 
+  // Decide if primary CTA should be "Open Vizwalk" or "Open Video"
+  const hasVizwalkUrl = !!(item.url && item.url.trim());
+  const hasVideo = !!rawYoutube;
+  const useVideoPrimary = !hasVizwalkUrl && hasVideo;
+  const primaryCtaLabel = useVideoPrimary ? "Open Video" : "Open Vizwalk";
+
+
+
+
 
   return (
     <div
@@ -158,8 +167,9 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
         }}
         tabIndex={0}
         role="button"
-        aria-label="Open Vizwalk"
-        title="Open Vizwalk"
+        aria-label={primaryCtaLabel}
+        title={primaryCtaLabel}
+
       >
         {/* image wrapper with blur on hover */}
         <div
@@ -191,7 +201,7 @@ const ytHref = rawYoutube ? normalizePathOrUrl(rawYoutube) : null;
               onOpenVizwalk?.();
             }}
           >
-            Open Vizwalk
+            {primaryCtaLabel}
           </button>
         </div>
       </div>
@@ -967,22 +977,40 @@ const handleClearAll = () => {
     return arr;
   }, [filtered]);
 
-  const handleOpenVizwalk = (item) => {
-  const rawUrl = (item.url || "").trim();
 
-  // 1) If url is an .exe path, launch via Electron
-  const looksLikeExe =
-    rawUrl &&
-    /\.exe$/i.test(rawUrl) &&
-    // very rough Windows path check, optional
-    (/^[a-z]:\\/i.test(rawUrl) || rawUrl.startsWith("\\\\"));
 
-  if (looksLikeExe && window.electronAPI?.launchExe) {
-    window.electronAPI.launchExe(rawUrl);
+
+  const openVideoForItem = (item) => {
+  const raw = (item.youtube || "").trim();
+  if (!raw) return;
+
+  const ytHref = normalizePathOrUrl(raw);
+
+  // Desktop: use VLC if exposed from preload
+  if (window.electronAPI && typeof window.electronAPI.openInVLC === "function") {
+    window.electronAPI.openInVLC(raw || ytHref);
     return;
   }
 
-  // 2) Otherwise, fall back to the existing web/relative Vizwalk URL logic
+  // Web / fallback: open in browser / default player
+  window.open(ytHref, "_blank", "noopener,noreferrer");
+};
+
+  const handleOpenVizwalk = (item) => {
+  const rawUrl = (item.url || "").trim();
+  const videoRaw = (item.youtube || "").trim();
+
+  const hasVizwalkUrl = !!rawUrl;
+  const hasVideo = !!videoRaw;
+
+  // ✅ If there is NO Vizwalk URL but we DO have a video,
+  //    use the video as the primary action for "Open Vizwalk"
+  if (!hasVizwalkUrl && hasVideo) {
+    openVideoForItem(item);
+    return;
+  }
+
+  // 🔹 Your existing Vizwalk logic (unchanged)
   const bust = Date.now();
   const sessionId = `${(item.projectName || "project")
     .toLowerCase()
@@ -994,13 +1022,19 @@ const handleClearAll = () => {
   if (rawUrl && /^https?:\/\//i.test(rawUrl)) {
     const u = new URL(rawUrl);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set("build", item.buildName || item.projectName || "Build");
+    u.searchParams.set(
+      "build",
+      item.buildName || item.projectName || "Build"
+    );
     href = u.toString();
   } else if (rawUrl) {
     // relative (e.g., /experience?... )
     const u = new URL(rawUrl, window.location.origin);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set("build", item.buildName || item.projectName || "Build");
+    u.searchParams.set(
+      "build",
+      item.buildName || item.projectName || "Build"
+    );
     href = u.toString();
   } else {
     const id = (item.projectName || "project")
@@ -1018,6 +1052,7 @@ const handleClearAll = () => {
 
   window.open(href, "_blank", "noopener,noreferrer");
 };
+
 
 
   const handleOpenGallery = (item) => {
