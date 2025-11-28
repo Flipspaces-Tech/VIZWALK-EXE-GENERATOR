@@ -799,27 +799,37 @@ export default function Landing() {
 
 
     // 🔹 Keyboard shortcut: press N to toggle Add/Clear buttons
-  // 🔹 Keyboard shortcut: press N to toggle Add/Clear buttons
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      const active = document.activeElement;
-      const tag = active?.tagName;
-      if (
-        tag === "INPUT" ||
-        tag === "TEXTAREA" ||
-        active?.isContentEditable
-      ) {
-        return;
-      }
+  const handleKeyDown = (e) => {
+    const active = document.activeElement;
+    const tag = active?.tagName;
+    if (
+      tag === "INPUT" ||
+      tag === "TEXTAREA" ||
+      active?.isContentEditable
+    ) {
+      return;
+    }
 
-      if (e.key === "n" || e.key === "N") {
-        setShowProjectActions((prev) => !prev);
-      }
-    };
+    if (e.key === "n" || e.key === "N") {
+      setShowProjectActions((prev) => {
+        const next = !prev;
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+        // 🔹 When turning OFF the actions, also hide the form & reset editing
+        if (!next) {
+          setShowForm(false);
+          setEditingInitial(null);
+        }
+
+        return next;
+      });
+    }
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+  return () => window.removeEventListener("keydown", handleKeyDown);
+}, []);
+
 
   // 🔹 NEW: Keyboard shortcut "?" (Shift + /) to toggle background video
   // useEffect(() => {
