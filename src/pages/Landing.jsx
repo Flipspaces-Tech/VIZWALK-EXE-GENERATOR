@@ -996,39 +996,29 @@ const handleClearAll = () => {
   window.open(ytHref, "_blank", "noopener,noreferrer");
 };
 
-  const handleOpenVizwalk = async (item) => {
+const handleOpenVizwalk = (item) => {
   const rawUrl = (item.url || "").trim();
-  const videoUrl = (item.youtube || "").trim();
+  const rawYoutube = (item.youtube || "").trim();
 
-  // 0) If no Vizwalk URL but we *do* have a video → open video instead
-  if (!rawUrl && videoUrl) {
-    const ytHref = normalizePathOrUrl(videoUrl);
+  // ---------- 1) NO VIZWALK URL, BUT WE DO HAVE VIDEO ----------
+  if (!rawUrl && rawYoutube) {
+    const videoHref = normalizePathOrUrl(rawYoutube);
 
-    if (window.electronAPI && typeof window.electronAPI.openInVLC === "function") {
-      window.electronAPI.openInVLC(videoUrl || ytHref);
-    } else {
-      window.open(ytHref, "_blank", "noopener,noreferrer");
+    // Desktop app → prefer VLC
+    if (
+      window.electronAPI &&
+      typeof window.electronAPI.openInVLC === "function"
+    ) {
+      window.electronAPI.openInVLC(rawYoutube || videoHref);
+      return;
     }
+
+    // Web / fallback → open in browser / default player
+    window.open(videoHref, "_blank", "noopener,noreferrer");
     return;
   }
 
-  // 1) EXE path → launch via Electron
-  const looksLikeExe =
-    rawUrl &&
-    /\.exe$/i.test(rawUrl) &&
-    (/^[a-z]:\\/i.test(rawUrl) || rawUrl.startsWith("\\\\"));
-
-  if (looksLikeExe && window.electronAPI?.launchExe) {
-    console.log("Launching EXE via electronAPI:", rawUrl);
-    try {
-      await window.electronAPI.launchExe(rawUrl);
-    } catch (e) {
-      console.error("launchExe failed:", e);
-    }
-    return; // ✅ Don't fall through
-  }
-
-  // 2) Normal URL / relative path → open in browser
+  // ---------- 2) WE HAVE A VIZWALK URL / EXE ----------
   const bust = Date.now();
   const sessionId = `${(item.projectName || "project")
     .toLowerCase()
@@ -1036,18 +1026,40 @@ const handleClearAll = () => {
     .toISOString()
     .replace(/[:.]/g, "-")}`;
 
+  const url = rawUrl;
+
+  // 2a) If url is a Windows .exe path → launch via Electron
+  const looksLikeExe =
+    url &&
+    /\.exe$/i.test(url) &&
+    (/^[a-z]:\\/i.test(url) || url.startsWith("\\\\"));
+
+  if (looksLikeExe && window.electronAPI?.launchExe) {
+    window.electronAPI.launchExe(url);
+    return;
+  }
+
+  // 2b) Otherwise treat as http(s) or relative Vizwalk URL
   let href;
-  if (rawUrl && /^https?:\/\//i.test(rawUrl)) {
-    const u = new URL(rawUrl);
+  if (url && /^https?:\/\//i.test(url)) {
+    const u = new URL(url);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set("build", item.buildName || item.projectName || "Build");
+    u.searchParams.set(
+      "build",
+      item.buildName || item.projectName || "Build"
+    );
     href = u.toString();
-  } else if (rawUrl) {
-    const u = new URL(rawUrl, window.location.origin);
+  } else if (url) {
+    // relative (e.g., /experience?... )
+    const u = new URL(url, window.location.origin);
     u.searchParams.set("session", sessionId);
-    u.searchParams.set("build", item.buildName || item.projectName || "Build");
+    u.searchParams.set(
+      "build",
+      item.buildName || item.projectName || "Build"
+    );
     href = u.toString();
   } else {
+    // 2c) Ultimate fallback → old /experience?project=...
     const id = (item.projectName || "project")
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -1063,6 +1075,7 @@ const handleClearAll = () => {
 
   window.open(href, "_blank", "noopener,noreferrer");
 };
+
 
 
 
