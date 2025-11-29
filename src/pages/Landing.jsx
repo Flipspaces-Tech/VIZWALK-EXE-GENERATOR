@@ -371,6 +371,7 @@ function ProjectForm({ onAdd, initial }) {
     areaSqft: "",
     industry: "",
     designStyle: "",
+    projectType: "",   // 👈 NEW
     thumb: "",
     youtube: "",
     vizdomId: "",
@@ -632,6 +633,24 @@ const handleVideoDrop = (e) => {
           </label>
         </div>
 
+        {/* 👇 NEW: Project Type */}
+  <label style={styles.label}>
+    Project Type
+    <select
+      name="projectType"
+      value={form.projectType}
+      onChange={handleChange}
+      style={styles.input}
+    >
+      <option value="">(none)</option>
+      <option value="office">Office</option>
+      <option value="coworking">Co-working</option>
+      <option value="restaurant">Restaurant</option>
+      <option value="retail">Retail</option>
+      <option value="multifamily">Multi-Family</option>
+    </select>
+  </label>
+
         <div
   style={styles.dropWrap}
   onDragOver={preventDefault}
@@ -765,6 +784,9 @@ export default function Landing() {
   const [showBgImage, setShowBgImage] = useState(false); 
 
   const [editingInitial, setEditingInitial] = useState(null);
+
+  const [typeFilter, setTypeFilter] = useState("all"); // 👈 NEW
+
 
   // 1) LOAD from Electron (or fallback to localStorage in dev web)
   useEffect(() => {
@@ -952,13 +974,25 @@ const handleClearAll = () => {
 
 
   const filtered = useMemo(() => {
-    const q = norm(query);
-    if (!q) return items;
-    return items.filter((it) => {
-      const hay = `${it.projectName} ${it.buildName} ${it.areaSqft} ${it.industry} ${it.designStyle} ${it.sbu}`;
-      return norm(hay).includes(q);
-    });
-  }, [items, query]);
+  const q = norm(query);
+
+  return items.filter((it) => {
+    // 🔹 1) Project type filter
+    if (typeFilter !== "all") {
+      const cat = norm(it.projectType || "");
+      if (!cat.includes(typeFilter)) {
+        return false;
+      }
+    }
+
+    // 🔹 2) Text search
+    if (!q) return true;
+
+    const hay = `${it.projectName} ${it.buildName} ${it.areaSqft} ${it.industry} ${it.designStyle} ${it.sbu} ${it.projectType}`;
+    return norm(hay).includes(q);
+  });
+}, [items, query, typeFilter]); // 👈 added typeFilter
+
 
   const groups = useMemo(() => {
     const g = new Map();
@@ -1141,6 +1175,33 @@ const handleOpenVizwalk = (item) => {
                 ×
               </button>
             ) : null}
+
+
+
+            {/* 🔹 Filters visible when N has NOT been pressed */}
+            {!showProjectActions && (
+              <div style={styles.filterChipRow}>
+                {[
+                  { id: "all", label: "All" },
+                  { id: "office", label: "Office" },
+                  { id: "coworking", label: "Co-working" },
+                  { id: "restaurant", label: "Restaurant" },
+                  { id: "multifamily", label: "Multi-Family" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    style={{
+                      ...styles.filterChip,
+                      ...(typeFilter === opt.id ? styles.filterChipActive : null),
+                    }}
+                    onClick={() => setTypeFilter(opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
 
             {/* 🔹 Only show these when N has been pressed */}
             {showProjectActions && (
@@ -1667,5 +1728,29 @@ const styles = {
     cursor: "pointer",
     color: "#b91c1c",
   },
+
+
+  filterChipRow: {
+  display: "flex",
+  gap: 6,
+  marginLeft: 8,
+},
+
+filterChip: {
+  borderRadius: 999,
+  border: "none",
+  padding: "4px 10px",
+  fontSize: 15,
+  fontWeight: 600,
+  background: "#eef2ff",
+  color: "#4b5563",
+  cursor: "pointer",
+},
+
+filterChipActive: {
+  background: "#2563eb",
+  color: "#ffffff",
+},
+
 
 };
